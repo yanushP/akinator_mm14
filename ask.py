@@ -1,17 +1,20 @@
 import random as rand
- 
- 
+import io
+
+NEED_DBG_INFO = True
+
+def print_dbg(obj):
+    if not NEED_DBG_INFO: return
+    print(obj)
+
 class database:
- 
-    STATES_CNT = 4
-    names = []
-    questions = []
-    marks = []
-    state_quest = [[] for _ in range(STATES_CNT)]
-    bad_questions = set([])
- 
     def __init__(self, link='data.txt'):
-        f = open(link)
+        self.names = []
+        self.questions = []
+        self.marks = []
+        self.bad_questions = set([])
+
+        f = io.open(link, encoding='utf-8')
         self.names = f.readline().split(' ')
         if self.names[-1][-1] == '\n':
             self.names[-1] = self.names[-1][:-1]
@@ -20,11 +23,10 @@ class database:
             ln = ln[:-1] if ln[-1] == '\n' else ln
             tm = ln.split(' ')
             cur_quest = ''
-            cur_stat = tm[0]
             parse_marks = False
             need_divide = False
- 
-            for i in range(1, len(tm)):
+
+            for i in range(0, len(tm)):
                 if parse_marks or (tm[i].isnumeric() and tm[i + 1].isnumeric()):
                     parse_marks = True
                     self.marks[-1].append(int(tm[i]))
@@ -37,20 +39,30 @@ class database:
             if need_divide:
                 for i in range(len(self.marks[-1])):
                     self.marks[-1][i] = self.marks[-1][i] // 2
-            for c in cur_stat:
-                if c.isnumeric():
-                    self.state_quest[int(c)].append(len(self.questions) - 1)
- 
+
     def set_bad_question(self, num):
         self.bad_questions.add(num)
- 
-    def generate_question(self, state, cur_questions, cur_people):
+
+    def generate_question(self, cur_questions, cur_people):
         questions = []
-        for nm in self.state_quest[state]:
+        qpc = []
+        for nm in range(len(self.questions)):
             if nm not in self.bad_questions and nm not in cur_questions:
                 questions.append(nm)
-        return questions[rand.randint(0, len(questions) - 1)] if len(questions) > 0 else -1
- 
+
+        for q in questions:
+            cnt = -1
+            for a in range(4):
+                n_cnt = 0
+                for p in cur_people:
+                    if self.check_answer(p, q, a):
+                        n_cnt += 1
+                cnt = max(cnt, n_cnt)
+            qpc.append((cnt, q))
+        qpc.sort()
+        print_dbg("qpc {}".format(qpc))
+        return qpc[rand.randint(0, min(3, len(questions) - 1))][1]
+
     def check_answer(self, person, question, ans):
         mark = self.marks[question][person]
         if ans == 0 and mark > 2:
@@ -65,72 +77,59 @@ class database:
             return True
         else:
             return False
- 
+
 class kernel:
- 
-    PROFESSORS_CNT = 20
-    people_steps = []
-    quest_steps = []
-    cur_step = 0
-    already_ask = False
- 
     def __init__(self, link='data.txt'):
+        self.people_steps = []
+        self.quest_steps = []
+
         self.base = database(link)
         self.people_steps.append(range(len(self.base.names)))
         self.quest_steps.append([])
- 
-    def get_state(self):
-        cnt_proff = 0
-        cnt_stud = 0
-        for v in self.people_steps[self.cur_step]:
-            cnt_proff += 1 if v < self.PROFESSORS_CNT else 0
-            cnt_stud += 0 if v < self.PROFESSORS_CNT else 1
-        if cnt_proff >= 3 or cnt_stud >= 5:
-            return 0 # start state
-        elif cnt_proff < 3:
-            return 1 # stud state
-        elif cnt_stud < 5:
-            return 2 # proff state
-        elif cnt_proff + cnt_stud < 6:
-            return 3 # final state
- 
+        self.already_ask = False
+
     def go_back(self, num=2):
-        print("GOBAAAAAACK")
-        while len(self.people_steps[self.cur_step]) <= num:
+        while len(self.people_steps[-1]) <= num:
+            print_dbg("[WARN]: GO BACK")
             self.people_steps.pop()
             self.quest_steps.pop()
-            self.cur_step -= 1
-            print ("[WARN]: GO BACK")
- 
+            print_dbg("after question {}".format(self.quest_steps))
+            print_dbg("after people {}".format(self.people_steps))
+
     def get_question(self, num):
         return self.base.questions[num]
- 
+
     def get_name(self, num):
         return self.base.names[num]
- 
+
     def ask(self):
-        if len(self.people_steps[self.cur_step]) == 1:
+        if len(self.people_steps[-1]) == 1:
+            print_dbg("have answer question {}".format(self.quest_steps))
+            print_dbg("have answer people {}".format(self.people_steps))
             return -1, self.people_steps[-1][0]
-        if len(self.people_steps[self.cur_step]) == 0:
-            self.go_back(2)
+        if len(self.people_steps[-1]) == 0:
+            self.go_back(3)
         if self.already_ask:
             return self.question, -1
- 
-        for num_back in [3, 10, 25]:
-            cur_state = self.get_state()
-            self.question = self.base.generate_question(cur_state, self.quest_steps[-1], self.people_steps[-1])
+        print_dbg("ask question {}".format(self.quest_steps))
+        print_dbg("ask people {}".format(self.people_steps))
+
+        for num_back in [2, 3, 5, 7, 9, 11, 22, 44]:
+            self.question = self.base.generate_question(self.quest_steps[-1], self.people_steps[-1])
+            print_dbg("self.question {}".format(self.question))
             if self.question == -1:
                 self.go_back(num_back)
                 continue
             self.already_ask = True
             return self.question, -1
-        print ("[ERROR]: too many bad answers")
+        print_dbg("[ERROR]: too many bad answers")
         exit(0)
         return -1, -1
- 
+
     def answer(self, res):
+        print_dbg("answer before question {}".format(self.quest_steps))
+        print_dbg("answer before people {}".format(self.people_steps))
         self.already_ask = False
-        self.cur_step += 1
         if res == 4:
             self.base.set_bad_question(self.question)
         self.quest_steps.append(list(self.quest_steps[-1]))
@@ -139,4 +138,6 @@ class kernel:
         for p in self.people_steps[-2]:
             if self.base.check_answer(p, self.question, res):
                 self.people_steps[-1].append(p)
+        print_dbg("answer after question {}".format(self.quest_steps))
+        print_dbg("answer after people {}".format(self.people_steps))
         return 1
