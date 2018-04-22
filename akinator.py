@@ -71,7 +71,7 @@ bgColor = (255,255,255)
 
 mainLoop = True
 
-end_game = False
+game_state = 0 #0 start, 1 game, 2 finish
 
 now_text = rand_str()
 
@@ -84,17 +84,18 @@ b3 = BButton('3.png','',(400 + 20,400))
 b4 = BButton('4.png','',(275 + 20,500))
 brestart = BButton('restart.png','',(150,300))
 bnew_game = BButton('new_game.png','',(0,0))
+bready = BButton('ready.png','',(100,300))
 
 while mainLoop: 
 	pe_event = pygame.event.get()
 	for event in pe_event: 
 		ans, result = GAME.ask()
 		if result != -1:
-			end_game = True
+			game_state = 2
 		if event.type == QUIT: 
 			mainLoop = False 
 		screen.fill(bgColor) 
-		if end_game:
+		if game_state == 2:
 			bgColor = (0,255,255)
 			screen.fill(bgColor)
 			put_text("Мы думаем это " + GAME.get_name(result), screen)
@@ -102,7 +103,17 @@ while mainLoop:
 			if event.type == MOUSEBUTTONDOWN and event.button == 1:
 				if brestart.collidepoint(mouse):
 					GAME = ask.kernel()
-					end_game = False
+					game_state = 0
+					bgColor = (255,255,255)
+			break
+		if game_state == 0:
+			screen.fill(bgColor)
+			put_text("Загадай человека", screen)
+			mouse = pygame.mouse.get_pos()
+			if event.type == MOUSEBUTTONDOWN and event.button == 1:
+				if bready.collidepoint(mouse):
+					GAME = ask.kernel()
+					game_state = 1
 					bgColor = (255,255,255)
 			break
 		put_text(GAME.get_question(ans), screen)
@@ -120,7 +131,7 @@ while mainLoop:
 			if b4.collidepoint(mouse):
 				picked = 4
 			if bnew_game.collidepoint(mouse):
-				GAME = ask.kernel()
+				game_state = 0
 				bgColor = (255,255,255)
 				break
 
@@ -129,14 +140,16 @@ while mainLoop:
 			GAME.answer(picked)
 
 
-	if not end_game:
+	if game_state == 1:
 		b0.render(screen)
 		b1.render(screen)
 		b2.render(screen)
 		b3.render(screen)
 		b4.render(screen)
 		bnew_game.render(screen)
-	else:
+	if game_state == 2:
 		brestart.render(screen)
+	if game_state == 0:
+		bready.render(screen)
 	pygame.display.update() 
 pygame.quit() 
