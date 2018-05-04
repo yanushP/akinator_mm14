@@ -61,7 +61,7 @@ class database:
             qpc.append((cnt, q))
         qpc.sort()
         print_dbg("qpc {}".format(qpc))
-        return qpc[rand.randint(0, min(2, len(questions) - 1))][1]
+        return qpc[rand.randint(0, min(3, len(questions) - 1))][1]
 
     def check_answer(self, person, question, ans):
         mark = self.marks[question][person]
